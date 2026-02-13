@@ -143,46 +143,94 @@ st.title("✨ ふたりのWishlist & Calendar")
 tab_list, tab_add, tab_calendar = st.tabs(["📋 リスト & 承認", "➕ 新しい提案", "📅 カレンダー"])
 
 # タブ1: 提案リストと承認
+# タブ1: 提案リストと承認
 with tab_list:
-    st.header("承認待ちの提案")
+    # --- セクション1: ふたりのやりたいこと（承認待ち） ---
+    st.markdown("### 💭 ふたりのやりたいこと (承認待ち)")
+    st.caption("相手の提案に「いいね！」して、やりたいことリストに加えよう")
+    
     df = db.fetch_data()
     
     if not df.empty:
         pending = df[df['status'] == 'pending']
         if pending.empty:
-            st.info("承認待ちの提案はありません。新しいことを考えよう！")
-        
-        for idx, row in pending.iterrows():
-            is_you = row['user'] == "あなた"
-            # ユーザーごとのカードスタイル設定
-            card_class = "card-you" if is_you else "card-partner"
-            badge_class = "bg-blue" if is_you else "bg-pink"
-            
-            with st.container():
-                st.markdown(f"""
-                <div class="proposal-card {card_class}">
-                    <h3>{row['title']}</h3>
-                    <div style="margin-bottom: 10px;">
-                        <span class="badge {badge_class}">{row['user']}</span>
-                        <span class="badge bg-cat">{row['category']}</span>
-                    </div>
-                    <p style="color: #666;">希望日: {row['proposed_date'] if row['proposed_date'] else 'いつでもOK'}</p>
-                </div>
-                """, unsafe_allow_html=True)
+            st.info("承認待ちの提案はありません。")
+        else:
+            for idx, row in pending.iterrows():
+                is_you = row['user'] == "あなた"
+                card_class = "card-you" if is_you else "card-partner"
+                badge_class = "bg-blue" if is_you else "bg-pink"
                 
-                # 日付選択と承認ボタン
-                c1, c2 = st.columns([2, 1])
-                with c1:
-                    d = st.date_input(f"実行する日を決める", date.today(), key=f"d_{row['id']}")
-                with c2:
-                    st.write("") # スペーサー
-                    st.write("")
-                    if st.button("これにする！承認 ❤️", key=f"b_{row['id']}"):
-                        if db.approve_proposal(row['id'], d):
-                            st.success("決定しました！")
-                            # 紙吹雪エフェクト
-                            rain(emoji="🎉", font_size=54, falling_speed=5, animation_length=1)
-                            st.rerun()
+                with st.container():
+                    st.markdown(f"""
+                    <div class="proposal-card {card_class}">
+                        <h3>{row['title']}</h3>
+                        <div style="margin-bottom: 10px;">
+                            <span class="badge {badge_class}">{row['user']}</span>
+                            <span class="badge bg-cat">{row['category']}</span>
+                        </div>
+                        <p style="color: #666;">希望日: {row['proposed_date'] if row['proposed_date'] else '未定'}</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    # 承認ボタンのみ
+                    col_btn, _ = st.columns([1, 2])
+                    with col_btn:
+                        if st.button("いいね！(承認) 👍", key=f"app_{row['id']}"):
+                            if db.approve_proposal(row['id']):
+                                st.success("承認しました！「いつやるか相談中」に移動します。")
+                                rain(emoji="✨", font_size=54, falling_speed=5, animation_length=1)
+                                st.rerun()
+
+    st.divider()
+
+    # --- セクション2: いつやるか相談中（承認済み・日程未定） ---
+    st.markdown("### 🗓️ いつやるか相談中")
+    st.caption("ふたりで話し合って、実行する日を決めよう！")
+    
+    if not df.empty:
+        approved = df[df['status'] == 'approved']
+        if approved.empty:
+            st.info("日程調整中の項目はありません。")
+        else:
+            for idx, row in approved.iterrows():
+                # デザインは共通だが、ボーダー色を変えるなどで区別しても良い。今回は共通。
+                is_you = row['user'] == "あなた"
+                card_class = "card-you" if is_you else "card-partner"
+                badge_class = "bg-blue" if is_you else "bg-pink"
+
+                with st.container():
+                    # シンプルなカード表示
+                    st.markdown(f"""
+                    <div class="proposal-card {card_class}" style="border-left-width: 10px;">
+                        <h4>✅ {row['title']}</h4>
+                        <div>
+                            <span class="badge {badge_class}">{row['user']}</span>
+                            <span class="badge bg-cat">{row['category']}</span>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    # 日付設定エリア
+                    c1, c2 = st.columns([2, 1])
+                    with c1:
+                        # デフォルトは今日、または希望日があればそこに近い日付
+                        default_date = date.today()
+                        if row['proposed_date']:
+                            try:
+                                default_date = pd.to_datetime(row['proposed_date']).date()
+                            except:
+                                pass
+                        
+                        d = st.date_input(f"実行日を決める", default_date, key=f"d_{row['id']}")
+                    with c2:
+                        st.write("") 
+                        st.write("")
+                        if st.button("カレンダーに登録 📅", key=f"sch_{row['id']}"):
+                            if db.schedule_proposal(row['id'], d):
+                                st.success("カレンダーに登録しました！")
+                                rain(emoji="🎉", font_size=54, falling_speed=5, animation_length=1)
+                                st.rerun()
 
 # タブ2: 新規提案
 with tab_add:
@@ -204,7 +252,8 @@ with tab_add:
 with tab_calendar:
     st.header("ふたりの予定表")
     if not df.empty:
-        approved = df[df['status'] == 'approved'].copy()
+        # 確定済み（scheduled）のみ表示
+        approved = df[df['status'] == 'scheduled'].copy()
         if approved.empty:
             st.info("まだ確定した予定はありません。")
         else:

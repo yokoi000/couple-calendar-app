@@ -11,10 +11,18 @@ try:
 except ImportError:
     HAS_GSPREAD = False
 
+# キャッシュされた接続関数
+@st.cache_resource
+def get_gspread_client(creds_dict):
+    """
+    gspreadクライアントをキャッシュして返す関数
+    """
+    return gspread.service_account_from_dict(creds_dict)
+
 class DataManager:
     """
     データの取得・保存を行うクラス。
-    Google Sheetsが設定されていない場合は、自動的にセッションステートを使用したモックモード（Mock Mode）で動作します。
+    Google Sheetsとの連携を管理し、開発/本番環境の切り替えを行います。
     """
     def __init__(self):
         self.use_mock = True
@@ -24,73 +32,96 @@ class DataManager:
     def _initialize_connection(self):
         """
         secrets.tomlの設定を使ってGoogle Sheetsへの接続を試みます。
-        接続できない場合はモックモードを有効にします。
         """
-        # 簡易チェック: secretsにプロジェクトIDが設定されているか
-        has_secrets = "gcp_service_account" in st.secrets and "your-project-id" not in st.secrets["gcp_service_account"]["project_id"]
-        
-        if has_secrets and HAS_GSPREAD:
-            try:
-                creds_dict = dict(st.secrets["gcp_service_account"])
-                gc = gspread.service_account_from_dict(creds_dict)
-                sheet_name = st.secrets["google_sheets"]["sheet_name"]
-                self.sheet = gc.open(sheet_name).sheet1
-                self.use_mock = False
-                # 接続成功時はログに出すのみ（画面には出さない）
-                print("Google Sheetsに接続しました。")
-            except Exception as e:
-                print(f"Google Sheetsへの接続に失敗しました: {e}。モックモードで動作します。")
-                self.use_mock = True
-        else:
-            print("Google Sheets設定が見つからないため、モックモードで動作します。")
+        if not HAS_GSPREAD:
+            print("gspreadライブラリが見つかりません。モックモードで動作します。")
             self.use_mock = True
+            self._init_mock_data()
+            return
 
-        # モック（デモ）用データの初期化
-        if self.use_mock:
-            if "mock_db" not in st.session_state:
-                # データフレームの初期化
-                st.session_state.mock_db = pd.DataFrame(columns=[
-                    "id", "user", "title", "category", "status", "proposed_date", "scheduled_date", "timestamp"
-                ])
-                # デモデータの追加
-                dummy_data = [
-                    {"id": "1", "user": "あなた", "title": "北海道旅行に行きたい", "category": "旅行", "status": "pending", "proposed_date": "2024-05-01", "scheduled_date": "", "timestamp": datetime.datetime.now().isoformat()},
-                    {"id": "2", "user": "彼女", "title": "新しいソファを見る", "category": "家", "status": "approved", "proposed_date": "2024-02-20", "scheduled_date": "2024-02-25", "timestamp": datetime.datetime.now().isoformat()},
-                    {"id": "3", "user": "彼女", "title": "美味しいイタリアン", "category": "グルメ", "status": "pending", "proposed_date": "", "scheduled_date": "", "timestamp": datetime.datetime.now().isoformat()},
-                ]
-                st.session_state.mock_db = pd.concat([st.session_state.mock_db, pd.DataFrame(dummy_data)], ignore_index=True)
+        try:
+            # GCP認証情報の取得
+            if "gcp_service_account" not in st.secrets:
+                raise ValueError("Secretsにgcp_service_accountがありません")
+            
+            creds_dict = dict(st.secrets["gcp_service_account"])
+            gc = get_gspread_client(creds_dict)
+
+            # 環境に応じたURLの取得
+            env = st.secrets.get("env", {}).get("current", "dev") # デフォルトはdev
+            url_key = f"spreadsheet_url_{env}"
+            
+            if "google_sheets" not in st.secrets or url_key not in st.secrets["google_sheets"]:
+                raise ValueError(f"Secretsに{url_key}が設定されていません")
+            
+            spreadsheet_url = st.secrets["google_sheets"][url_key]
+            
+            # シートを開く
+            self.sheet = gc.open_by_url(spreadsheet_url).sheet1
+            self.use_mock = False
+            
+            # ヘッダーの自動初期化チェック
+            self._check_and_init_header()
+            
+            print(f"Google Sheets ({env}) に接続しました。")
+
+        except Exception as e:
+            print(f"Google Sheetsへの接続に失敗しました: {e}。モックモードで動作します。")
+            self.use_mock = True
+            self._init_mock_data()
+
+    def _check_and_init_header(self):
+        """
+        シートが空の場合、ヘッダーを書き込みます。
+        """
+        try:
+            if not self.sheet.get_all_values():
+                headers = ["id", "user", "title", "category", "proposed_date", "status", "scheduled_date", "timestamp"]
+                self.sheet.append_row(headers)
+                print("ヘッダーを初期化しました。")
+        except Exception as e:
+            print(f"ヘッダー初期化エラー: {e}")
+
+    def _init_mock_data(self):
+        """モックデータの初期化"""
+        if "mock_db" not in st.session_state:
+            st.session_state.mock_db = pd.DataFrame(columns=[
+                "id", "user", "title", "category", "status", "proposed_date", "scheduled_date", "timestamp"
+            ])
+            # デモデータ
+            dummy_data = [
+                {"id": "1", "user": "あなた", "title": "北海道旅行に行きたい", "category": "旅行", "status": "pending", "proposed_date": "2024-05-01", "scheduled_date": "", "timestamp": datetime.datetime.now().isoformat()},
+                {"id": "2", "user": "彼女", "title": "新しいソファを見る", "category": "家", "status": "approved", "proposed_date": "2024-02-20", "scheduled_date": "", "timestamp": datetime.datetime.now().isoformat()},
+            ]
+            st.session_state.mock_db = pd.concat([st.session_state.mock_db, pd.DataFrame(dummy_data)], ignore_index=True)
 
     def fetch_data(self):
-        """
-        データをPandas DataFrameとして取得します。
-        """
+        """データを取得"""
         if self.use_mock:
             return st.session_state.mock_db
         else:
             try:
                 data = self.sheet.get_all_records()
                 df = pd.DataFrame(data)
+                # 必須カラムの確保
                 expected_cols = ["id", "user", "title", "category", "status", "proposed_date", "scheduled_date", "timestamp"]
-                # カラムが不足している場合は空文字で埋める
                 for col in expected_cols:
                     if col not in df.columns:
                         df[col] = ""
                 return df
             except Exception as e:
-                st.error(f"データの取得中にエラーが発生しました: {e}")
+                st.error(f"データ取得エラー: {e}")
                 return pd.DataFrame()
 
     def add_proposal(self, user, title, category, proposed_date=""):
-        """
-        新しい提案を追加します。
-        """
+        """新規提案の追加 (Status: pending)"""
         new_row = {
-            "id": str(datetime.datetime.now().timestamp()), # 簡易的なID生成
+            "id": str(datetime.datetime.now().timestamp()),
             "user": user,
             "title": title,
             "category": category,
-            "status": "pending",
             "proposed_date": str(proposed_date) if proposed_date else "",
+            "status": "pending",
             "scheduled_date": "",
             "timestamp": datetime.datetime.now().isoformat()
         }
@@ -100,37 +131,59 @@ class DataManager:
             return True
         else:
             try:
-                # 辞書の値をリストに変換して追加
-                values = list(new_row.values())
+                # 辞書の順序はヘッダーと一致させる必要がありますが、gspreadのappend_rowはリストを受け取ります
+                # ここでは辞書のキー順ではなく、明示的なリストを作成します
+                values = [
+                    new_row["id"], new_row["user"], new_row["title"], new_row["category"], 
+                    new_row["proposed_date"], new_row["status"], new_row["scheduled_date"], new_row["timestamp"]
+                ]
                 self.sheet.append_row(values)
                 return True
             except Exception as e:
-                st.error(f"提案の追加に失敗しました: {e}")
+                st.error(f"追加エラー: {e}")
                 return False
 
-    def approve_proposal(self, item_id, scheduled_date):
-        """
-        提案を承認（ステータスをapprovedに更新）し、日付を確定させます。
-        """
+    def approve_proposal(self, item_id):
+        """提案承認 (Status: pending -> approved)"""
         if self.use_mock:
             df = st.session_state.mock_db
             idx = df[df['id'] == item_id].index
             if not idx.empty:
                 st.session_state.mock_db.at[idx[0], 'status'] = 'approved'
+                return True
+            return False
+        else:
+            try:
+                cell = self.sheet.find(str(item_id))
+                if cell:
+                    # statusカラムは6番目 (F列) と仮定
+                    # ヘッダー: id(1), user(2), title(3), category(4), proposed_date(5), status(6)
+                    self.sheet.update_cell(cell.row, 6, "approved")
+                    return True
+                return False
+            except Exception as e:
+                st.error(f"承認エラー: {e}")
+                return False
+
+    def schedule_proposal(self, item_id, scheduled_date):
+        """日程確定 (Status: approved -> scheduled)"""
+        if self.use_mock:
+            df = st.session_state.mock_db
+            idx = df[df['id'] == item_id].index
+            if not idx.empty:
+                st.session_state.mock_db.at[idx[0], 'status'] = 'scheduled'
                 st.session_state.mock_db.at[idx[0], 'scheduled_date'] = str(scheduled_date)
                 return True
             return False
         else:
             try:
-                # IDに対応するセルを検索
                 cell = self.sheet.find(str(item_id))
                 if cell:
-                    row = cell.row
-                    # カラム位置は固定と仮定（MVPのため）: Status(5), ScheduledDate(7)
-                    self.sheet.update_cell(row, 5, "approved")
-                    self.sheet.update_cell(row, 7, str(scheduled_date))
+                    # status(6), scheduled_date(7)
+                    self.sheet.update_cell(cell.row, 6, "scheduled")
+                    self.sheet.update_cell(cell.row, 7, str(scheduled_date))
                     return True
                 return False
             except Exception as e:
-                st.error(f"承認処理に失敗しました: {e}")
+                st.error(f"確定エラー: {e}")
                 return False
