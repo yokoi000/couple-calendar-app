@@ -3,6 +3,7 @@ import pandas as pd
 from datetime import date
 from data_manager import DataManager
 from streamlit_extras.let_it_rain import rain
+import time
 
 # --- 設定とスタイリング ---
 st.set_page_config(
@@ -173,14 +174,22 @@ with tab_list:
                     </div>
                     """, unsafe_allow_html=True)
                     
-                    # 承認ボタンのみ
-                    col_btn, _ = st.columns([1, 2])
+                    # ボタンエリア
+                    col_btn, _2, _ = st.columns([1, 1, 2])
                     with col_btn:
                         if st.button("いいね！(承認) 👍", key=f"app_{row['id']}"):
                             if db.approve_proposal(row['id']):
                                 st.success("承認しました！「いつやるか相談中」に移動します。")
                                 rain(emoji="✨", font_size=54, falling_speed=5, animation_length=1)
                                 st.rerun()
+                    with _2:
+                         with st.popover("🗑️", help="削除"):
+                            st.warning("この操作は取り消せません。本当に削除しますか？")
+                            if st.button("削除", key=f"del_pending_{row['id']}", type="primary"):
+                                if db.delete_proposal(row['id']):
+                                    st.toast("削除しました", icon="🗑️")
+                                    time.sleep(1)
+                                    st.rerun()
 
     st.divider()
 
@@ -231,6 +240,15 @@ with tab_list:
                                 st.success("カレンダーに登録しました！")
                                 rain(emoji="🎉", font_size=54, falling_speed=5, animation_length=1)
                                 st.rerun()
+                        
+                        st.write("")
+                        with st.popover("🗑️", help="削除"):
+                            st.warning("この操作は取り消せません。本当に削除しますか？")
+                            if st.button("削除", key=f"del_sched_{row['id']}", type="primary"):
+                                if db.delete_proposal(row['id']):
+                                    st.toast("削除しました", icon="🗑️")
+                                    time.sleep(1)
+                                    st.rerun()
 
 # タブ2: 新規提案
 with tab_add:
@@ -264,7 +282,18 @@ with tab_calendar:
             for idx, row in approved.iterrows():
                 d_str = row['scheduled_date'].strftime('%Y年%m月%d日')
                 st.markdown(f"### 🗓️ {d_str}")
-                st.info(f"**{row['title']}** ({row['category']}) - 提案: {row['user']}")
+                
+                c_info, c_del = st.columns([4, 1])
+                with c_info:
+                    st.info(f"**{row['title']}** ({row['category']}) - 提案: {row['user']}")
+                with c_del:
+                    with st.popover("🗑️", help="削除"):
+                        st.warning("この操作は取り消せません。本当に削除しますか？")
+                        if st.button("削除", key=f"del_cal_{row['id']}", type="primary"):
+                            if db.delete_proposal(row['id']):
+                                st.toast("削除しました", icon="🗑️")
+                                time.sleep(1)
+                                st.rerun()
     
     st.divider()
     # CSVダウンロード機能

@@ -205,3 +205,23 @@ class DataManager:
             except Exception as e:
                 st.error(f"確定エラー: {e}")
                 return False
+
+    def delete_proposal(self, item_id):
+        """提案の削除 (物理削除)"""
+        if self.use_mock:
+            df = st.session_state.mock_db
+            idx = df[df['id'] == item_id].index
+            if not idx.empty:
+                st.session_state.mock_db = df.drop(idx).reset_index(drop=True)
+                return True
+            return False
+        else:
+            try:
+                cell = self.sheet.find(str(item_id))
+                if cell:
+                    self.sheet.delete_rows(cell.row)
+                    return True
+                return False
+            except Exception as e:
+                st.error(f"削除エラー: {e}")
+                return False
