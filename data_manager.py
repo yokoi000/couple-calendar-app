@@ -19,6 +19,18 @@ def get_gspread_client(creds_dict):
     """
     return gspread.service_account_from_dict(creds_dict)
 
+@st.cache_data(ttl=600)
+def _get_categories_from_sheet(creds_dict, spreadsheet_url):
+    """categoriesシートからデータを取得（キャッシュ付き）"""
+    try:
+        gc = gspread.service_account_from_dict(creds_dict)
+        wb = gc.open_by_url(spreadsheet_url)
+        ws = wb.worksheet("categories")
+        return ws.col_values(1)
+    except Exception as e:
+        print(f"Categories fetch error: {e}")
+        return None
+
 class DataManager:
     """
     データの取得・保存を行うクラス。
@@ -94,6 +106,9 @@ class DataManager:
                 {"id": "2", "user": "彼女", "title": "新しいソファを見る", "category": "家", "proposed_date": "2024-02-20", "status": "approved", "created_at": datetime.datetime.now().isoformat(), "scheduled_date": ""},
             ]
             st.session_state.mock_db = pd.concat([st.session_state.mock_db, pd.DataFrame(dummy_data)], ignore_index=True)
+            
+        if "mock_categories" not in st.session_state:
+            st.session_state.mock_categories = ["旅行", "グルメ", "家", "日常"]
 
     def fetch_data(self):
         """データを取得"""
@@ -225,3 +240,76 @@ class DataManager:
             except Exception as e:
                 st.error(f"削除エラー: {e}")
                 return False
+
+    def fetch_categories(self):
+        """カテゴリ一覧の取得"""
+        if self.use_mock:
+            return st.session_state.get("mock_categories", ["旅行", "グルメ", "家", "日常"])
+        
+        try:
+            creds_dict = dict(st.secrets["gcp_service_account"])
+            env = st.secrets.get("env", {}).get("current", "dev")
+            url_key = f"spreadsheet_url_{env}"
+            if "google_sheets" not in st.secrets or url_key not in st.secrets["google_sheets"]:
+                 return ["旅行", "グルメ", "家", "日常"]
+            
+            url = st.secrets["google_sheets"][url_key]
+            
+            raw_rows = _get_categories_from_sheet(creds_dict, url)
+            
+            if raw_rows is None or len(raw_rows) <= 1:
+                return ["旅行", "グルメ", "家", "日常"]
+            
+            # ヘッダー(1行目)を除外して重複排除
+            categories = []
+            seen = set()
+            for r in raw_rows[1:]:
+                r = r.strip()
+                if r and r not in seen:
+                    categories.append(r)
+                    seen.add(r)
+            
+            return categories if categories else ["旅行", "グルメ", "家", "日常"]
+            
+        except Exception:
+            return ["旅行", "グルメ", "家", "日常"]
+
+    def add_category(self, category_name):
+        """カテゴリの追加"""
+        category_name = category_name.strip()
+        if not category_name:
+            return False, "カテゴリ名が空です"
+        
+        current_cats = self.fetch_categories()
+        if category_name in current_cats:
+            return False, "既に存在するカテゴリです"
+            
+        if self.use_mock:
+            if "mock_categories" not in st.session_state:
+                st.session_state.mock_categories = ["旅行", "グルメ", "家", "日常"]
+            st.session_state.mock_categories.append(category_name)
+            return True, "カテゴリを追加しました"
+            
+        try:
+            creds_dict = dict(st.secrets["gcp_service_account"])
+            env = st.secrets.get("env", {}).get("current", "dev")
+            url_key = f"spreadsheet_url_{env}"
+            url = st.secrets["google_sheets"][url_key]
+            
+            gc = get_gspread_client(creds_dict)
+            wb = gc.open_by_url(url)
+            try:
+                ws = wb.worksheet("categories")
+            except:
+                # シートがなければ作成（念のため）
+                ws = wb.add_worksheet(title="categories", rows=100, cols=2)
+                ws.append_row(["category_name"])
+            
+            ws.append_row([category_name])
+            
+            # キャッシュクリア
+            _get_categories_from_sheet.clear()
+            
+            return True, "カテゴリを追加しました"
+        except Exception as e:
+            return False, f"追加エラー: {e}"
