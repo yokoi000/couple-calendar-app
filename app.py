@@ -387,6 +387,11 @@ with st.sidebar.expander("⚙️ カテゴリ設定"):
                 st.rerun()
             else:
                 st.error(msg)
+    
+    st.divider()
+    # 環境表示
+    current_env = st.secrets.get("general", {}).get("env", "unknown")
+    st.caption(f"Mode: {current_env}")
 
 # タブ3: カレンダー（確定リスト）
 with tab_calendar:
