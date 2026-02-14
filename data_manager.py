@@ -67,14 +67,15 @@ class DataManager:
             creds_dict = dict(st.secrets["gcp_service_account"])
             gc = get_gspread_client(creds_dict)
 
-            # 環境に応じたURLの取得
-            env = st.secrets.get("env", {}).get("current", "dev") # デフォルトはdev
-            url_key = f"spreadsheet_url_{env}"
+            # 環境に応じたURLの取得 (general.spreadsheet_url)
+            if "general" not in st.secrets or "spreadsheet_url" not in st.secrets["general"]:
+                raise ValueError("Secretsにgeneral.spreadsheet_urlが設定されていません")
             
-            if "google_sheets" not in st.secrets or url_key not in st.secrets["google_sheets"]:
-                raise ValueError(f"Secretsに{url_key}が設定されていません")
+            spreadsheet_url = st.secrets["general"]["spreadsheet_url"]
+            env = st.secrets.get("general", {}).get("env", "unknown")
             
-            spreadsheet_url = st.secrets["google_sheets"][url_key]
+            if not spreadsheet_url:
+                 raise ValueError("Spreadsheet URL is empty")
             
             # シートを開く
             self.sheet = gc.open_by_url(spreadsheet_url).sheet1
@@ -297,12 +298,12 @@ class DataManager:
         
         try:
             creds_dict = dict(st.secrets["gcp_service_account"])
-            env = st.secrets.get("env", {}).get("current", "dev")
-            url_key = f"spreadsheet_url_{env}"
-            if "google_sheets" not in st.secrets or url_key not in st.secrets["google_sheets"]:
+            
+            # 環境分離: general.spreadsheet_url
+            if "general" not in st.secrets or "spreadsheet_url" not in st.secrets["general"]:
                  return ["旅行", "グルメ", "家", "日常"]
             
-            url = st.secrets["google_sheets"][url_key]
+            url = st.secrets["general"]["spreadsheet_url"]
             
             raw_rows = _get_categories_from_sheet(creds_dict, url)
             
@@ -341,9 +342,10 @@ class DataManager:
             
         try:
             creds_dict = dict(st.secrets["gcp_service_account"])
-            env = st.secrets.get("env", {}).get("current", "dev")
-            url_key = f"spreadsheet_url_{env}"
-            url = st.secrets["google_sheets"][url_key]
+            # 環境分離: general.spreadsheet_url
+            if "general" not in st.secrets or "spreadsheet_url" not in st.secrets["general"]:
+                return False, "Secretsにgeneral.spreadsheet_urlが設定されていません"
+            url = st.secrets["general"]["spreadsheet_url"]
             
             gc = get_gspread_client(creds_dict)
             wb = gc.open_by_url(url)
@@ -388,9 +390,10 @@ class DataManager:
         
         try:
             creds_dict = dict(st.secrets["gcp_service_account"])
-            env = st.secrets.get("env", {}).get("current", "dev")
-            url_key = f"spreadsheet_url_{env}"
-            url = st.secrets["google_sheets"][url_key]
+            # 環境分離: general.spreadsheet_url
+            if "general" not in st.secrets or "spreadsheet_url" not in st.secrets["general"]:
+                return False, "Secretsにgeneral.spreadsheet_urlが設定されていません"
+            url = st.secrets["general"]["spreadsheet_url"]
             
             gc = get_gspread_client(creds_dict)
             wb = gc.open_by_url(url)
