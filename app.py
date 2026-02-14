@@ -299,52 +299,53 @@ with tab_add:
             if f_title:
                 if db.add_proposal(st.session_state.current_user, f_title, f_cat, f_date):
                     st.toast("提案リストに追加しました！", icon="🎉")
-                    # 念のためステートもクリア（clear_on_submitがあるので基本不要だが）
                     time.sleep(1)
                     st.rerun()
             else:
                 st.error("タイトルを入力してください")
 
-    st.write("")
-    # カテゴリ追加・編集UI
-    col_add_cat, col_edit_cat = st.columns(2)
+# サイドバーにカテゴリ設定を移動
+with st.sidebar.expander("⚙️ カテゴリ設定"):
+    st.write("カテゴリの追加・編集")
     
-    with col_add_cat:
-        with st.expander("カテゴリを追加"):
-            new_cat_name = st.text_input("新しいカテゴリ名", key="new_cat_input")
-            if st.button("追加", key="add_cat_btn"):
-                success, msg = db.add_category(new_cat_name)
-                if success:
-                    st.success(msg)
-                    time.sleep(1)
-                    st.rerun()
-                else:
-                    st.error(msg)
-
-    with col_edit_cat:
-        with st.expander("カテゴリ名を変更"):
-            current_categories = db.fetch_categories()
-            if current_categories:
-                target_cat = st.selectbox("変更するカテゴリ", current_categories, key="edit_cat_target")
-                
-                # 影響範囲の計算
-                all_data = db.fetch_data()
-                impact_count = 0
-                if not all_data.empty:
-                    impact_count = all_data[all_data['category'] == target_cat].shape[0]
-                
-                st.caption(f"※ 既存のデータ **{impact_count}件** も同時に更新されます")
-                
-                rename_cat_name = st.text_input("新しい名前", key="rename_cat_input")
-                
-                if st.button("変更を保存", key="rename_cat_btn"):
-                    success, msg = db.update_category(target_cat, rename_cat_name)
-                    if success:
-                        st.success(msg)
-                        time.sleep(1)
-                        st.rerun()
-                    else:
-                        st.error(msg)
+    # カテゴリ追加
+    st.subheader("追加")
+    new_cat_name = st.text_input("新しいカテゴリ名", key="new_cat_input")
+    if st.button("追加", key="add_cat_btn"):
+        success, msg = db.add_category(new_cat_name)
+        if success:
+            st.success(msg)
+            time.sleep(1)
+            st.rerun()
+        else:
+            st.error(msg)
+            
+    st.divider()
+    
+    # カテゴリ編集
+    st.subheader("名称変更")
+    current_categories = db.fetch_categories()
+    if current_categories:
+        target_cat = st.selectbox("変更するカテゴリ", current_categories, key="edit_cat_target")
+        
+        # 影響範囲の計算
+        all_data = db.fetch_data()
+        impact_count = 0
+        if not all_data.empty:
+            impact_count = all_data[all_data['category'] == target_cat].shape[0]
+        
+        st.caption(f"※ 既存 **{impact_count}件** も更新")
+        
+        rename_cat_name = st.text_input("新しい名前", key="rename_cat_input")
+        
+        if st.button("変更を保存", key="rename_cat_btn"):
+            success, msg = db.update_category(target_cat, rename_cat_name)
+            if success:
+                st.success(msg)
+                time.sleep(1)
+                st.rerun()
+            else:
+                st.error(msg)
 
 # タブ3: カレンダー（確定リスト）
 with tab_calendar:

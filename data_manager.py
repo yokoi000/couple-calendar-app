@@ -11,6 +11,14 @@ try:
 except ImportError:
     HAS_GSPREAD = False
 
+# LINE SDK Import (try-except to avoid error if not installed locally)
+try:
+    from linebot import LineBotApi
+    from linebot.models import TextSendMessage
+    HAS_LINE_SDK = True
+except ImportError:
+    HAS_LINE_SDK = False
+
 # キャッシュされた接続関数
 @st.cache_resource
 def get_gspread_client(creds_dict):
@@ -161,6 +169,7 @@ class DataManager:
 
         if self.use_mock:
             st.session_state.mock_db = pd.concat([st.session_state.mock_db, pd.DataFrame([new_row])], ignore_index=True)
+            self.send_line_notification(f"[新しい提案] {user}さんが『{title}』を提案しました！💑\nアプリを開く: https://couple-calendar-app.streamlit.app/")
             return True
         else:
             try:
@@ -171,18 +180,31 @@ class DataManager:
                     new_row["proposed_date"], new_row["status"], new_row["created_at"], new_row["scheduled_date"]
                 ]
                 self.sheet.append_row(values)
+                
+                # LINE通知
+                self.send_line_notification(f"[新しい提案] {user}さんが『{title}』を提案しました！💑\nアプリを開く: https://couple-calendar-app.streamlit.app/")
+                
                 return True
             except Exception as e:
                 st.error(f"追加エラー: {e}")
                 return False
 
-    def approve_proposal(self, item_id):
+    def approve_proposal(self, item_id, title=""): # title引数を追加して通知に使う
         """提案承認 (Status: pending -> approved)"""
+        # titleが渡されていない場合は取得するロジックが必要だが、簡略化のため呼び出し元で渡すか、ここで検索するか。
+        # ここでは検索コストを避けるため、呼び出し元で渡してもらうように変更するのがベストだが、既存コードへの影響を最小限にするため、
+        # 必要な場合のみ検索、または通知メッセージを汎用的にする。
+        # 今回は、通知のためにtitleが必要なので、モック/DBから取得する。
+        
+        target_title = title
+        
         if self.use_mock:
             df = st.session_state.mock_db
             idx = df[df['id'] == item_id].index
             if not idx.empty:
                 st.session_state.mock_db.at[idx[0], 'status'] = 'approved'
+                target_title = st.session_state.mock_db.at[idx[0], 'title']
+                self.send_line_notification(f"[承認] {target_title} が承認されました！✨ 二人で日程を決めよう！\nアプリを開く: https://couple-calendar-app.streamlit.app/")
                 return True
             return False
         else:
@@ -192,11 +214,38 @@ class DataManager:
                     # statusカラムは6番目 (F列) と仮定
                     # ヘッダー: id(1), user(2), title(3), category(4), proposed_date(5), status(6), created_at(7), scheduled_date(8)
                     self.sheet.update_cell(cell.row, 6, "approved")
+                    
+                    # タイトルを取得 (3列目)
+                    if not target_title:
+                         target_title = self.sheet.cell(cell.row, 3).value
+
+                    self.send_line_notification(f"[承認] {target_title} が承認されました！✨ 二人で日程を決めよう！\nアプリを開く: https://couple-calendar-app.streamlit.app/")
                     return True
                 return False
             except Exception as e:
                 st.error(f"承認エラー: {e}")
                 return False
+
+    def send_line_notification(self, message):
+        """LINE Messaging APIで通知を送信"""
+        if not HAS_LINE_SDK:
+            return
+
+        try:
+            # フラットなキー名で取得
+            token = st.secrets.get("LINE_CHANNEL_ACCESS_TOKEN")
+            user_id = st.secrets.get("LINE_USER_ID") # または LINE_GROUP_ID
+            
+            if not token or not user_id:
+                # 設定がない場合は何もしない
+                return
+
+            line_bot_api = LineBotApi(token)
+            line_bot_api.push_message(user_id, TextSendMessage(text=message))
+            
+        except Exception as e:
+            # 通知エラーでアプリを止めない
+            print(f"LINE通知エラー: {e}")
 
     def schedule_proposal(self, item_id, scheduled_date):
         """日程確定 (Status: approved -> scheduled)"""
