@@ -22,20 +22,70 @@ st.markdown("""
         font-family: 'M PLUS Rounded 1c', sans-serif;
     }
     
+    /* ライトモード（デフォルト） */
     .stApp {
         background-color: #FDFBF7; /* クリーム系の優しい白 */
     }
     
-    /* 見出し */
-    h1, h2, h3 {
+    h1, h2, h3, p, span, .stMarkdown, div, label {
         color: #5D6D7E; /* 落ち着いたグレー */
+    }
+
+    /* 提案カードのデザイン（共通） */
+    .proposal-card {
+        padding: 20px;
+        border-radius: 15px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        margin-bottom: 20px;
+        border-left: 6px solid #ccc;
+        transition: all 0.3s ease;
+    }
+    
+    /* カードの色（ライトモード） */
+    .proposal-card {
+        background-color: white;
+        color: #5D6D7E;
+    }
+
+    /* ダークモード対応 */
+    @media (prefers-color-scheme: dark) {
+        .stApp {
+            background-color: #1E1E1E !important; /* 目に優しいダークグレー */
+        }
+        
+        h1, h2, h3, p, span, .stMarkdown, div, label, .stTextInput > label, .stSelectbox > label, .stDateInput > label {
+            color: #FDFBF7 !important; /* クリーム系の白 */
+        }
+        
+        /* 提案カード（ダークモード） */
+        .proposal-card {
+            background-color: #2D2D2D !important;
+            color: #FDFBF7 !important;
+            box-shadow: 0 4px 6px rgba(255,255,255,0.05);
+        }
+        
+        /* 入力フィールドの調整 */
+        .stTextInput > div > div > input, .stSelectbox > div > div > div {
+            background-color: #333 !important;
+            color: #FDFBF7 !important;
+            border: 1px solid #555 !important;
+        }
+        
+        /* サイドバーも暗くする */
+         section[data-testid="stSidebar"] {
+            background-color: #252525 !important;
+        }
+    }
+
+    /* 見出し（共通で太字） */
+    h1, h2, h3 {
         font-weight: 700;
     }
 
     /* ボタン（共通） */
     div.stButton > button:first-child {
         background-color: #A9CCE3; /* パステルブルー */
-        color: white;
+        color: white !important;
         border-radius: 20px;
         border: none;
         padding: 10px 24px;
@@ -47,21 +97,12 @@ st.markdown("""
         transform: scale(1.05); /* ホバー時に少し拡大 */
     }
     
-    /* 入力フィールド */
+    /* 入力フィールド（ライトモード用デフォルト） */
     .stTextInput > div > div > input {
         border-radius: 10px;
         border: 1px solid #E5E7E9;
     }
 
-    /* 提案カードのデザイン */
-    .proposal-card {
-        background-color: white;
-        padding: 20px;
-        border-radius: 15px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-        margin-bottom: 20px;
-        border-left: 6px solid #ccc; /* デフォルトの色 */
-    }
     .card-you { border-left-color: #AED6F1; } /* あなた（青） */
     .card-partner { border-left-color: #F5B7B1; } /* 彼女（ピンク） */
 
@@ -70,13 +111,13 @@ st.markdown("""
         display: inline-block;
         padding: 4px 12px;
         border-radius: 15px;
-        color: white;
+        color: white !important;
         font-size: 0.8rem;
         margin-right: 10px;
     }
     .bg-blue { background-color: #AED6F1; }
     .bg-pink { background-color: #F5B7B1; }
-    .bg-cat { background-color: #D7BDE2; color: white; } /* カテゴリ用（紫） */
+    .bg-cat { background-color: #D7BDE2; color: white !important; }
 
 </style>
 """, unsafe_allow_html=True)
