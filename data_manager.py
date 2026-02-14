@@ -76,7 +76,7 @@ class DataManager:
         """
         try:
             if not self.sheet.get_all_values():
-                headers = ["id", "user", "title", "category", "proposed_date", "status", "scheduled_date", "timestamp"]
+                headers = ["id", "user", "title", "category", "proposed_date", "status", "created_at", "scheduled_date"]
                 self.sheet.append_row(headers)
                 print("ヘッダーを初期化しました。")
         except Exception as e:
@@ -86,12 +86,12 @@ class DataManager:
         """モックデータの初期化"""
         if "mock_db" not in st.session_state:
             st.session_state.mock_db = pd.DataFrame(columns=[
-                "id", "user", "title", "category", "status", "proposed_date", "scheduled_date", "timestamp"
+                "id", "user", "title", "category", "proposed_date", "status", "created_at", "scheduled_date"
             ])
             # デモデータ
             dummy_data = [
-                {"id": "1", "user": "あなた", "title": "北海道旅行に行きたい", "category": "旅行", "status": "pending", "proposed_date": "2024-05-01", "scheduled_date": "", "timestamp": datetime.datetime.now().isoformat()},
-                {"id": "2", "user": "彼女", "title": "新しいソファを見る", "category": "家", "status": "approved", "proposed_date": "2024-02-20", "scheduled_date": "", "timestamp": datetime.datetime.now().isoformat()},
+                {"id": "1", "user": "あなた", "title": "北海道旅行に行きたい", "category": "旅行", "proposed_date": "2024-05-01", "status": "pending", "created_at": datetime.datetime.now().isoformat(), "scheduled_date": ""},
+                {"id": "2", "user": "彼女", "title": "新しいソファを見る", "category": "家", "proposed_date": "2024-02-20", "status": "approved", "created_at": datetime.datetime.now().isoformat(), "scheduled_date": ""},
             ]
             st.session_state.mock_db = pd.concat([st.session_state.mock_db, pd.DataFrame(dummy_data)], ignore_index=True)
 
@@ -101,17 +101,35 @@ class DataManager:
             return st.session_state.mock_db
         else:
             try:
-                data = self.sheet.get_all_records()
-                df = pd.DataFrame(data)
-                # 必須カラムの確保
-                expected_cols = ["id", "user", "title", "category", "status", "proposed_date", "scheduled_date", "timestamp"]
-                for col in expected_cols:
-                    if col not in df.columns:
-                        df[col] = ""
+                # get_all_valuesで全データをリストとして取得（ヘッダーエラー回避のため）
+                rows = self.sheet.get_all_values()
+                
+                # 必須カラムの定義
+                expected_cols = ["id", "user", "title", "category", "proposed_date", "status", "created_at", "scheduled_date"]
+                
+                if len(rows) < 2:
+                    # ヘッダーのみ、または空の場合は空のDataFrameを返す
+                    return pd.DataFrame(columns=expected_cols)
+                
+                # ヘッダー行(rows[0])は無視して、データ行(rows[1:])を使用
+                data_rows = rows[1:]
+                
+                # 列数が足りない場合は空文字で埋める、多い場合は切り捨てる
+                cleaned_data = []
+                for row in data_rows:
+                    if len(row) < len(expected_cols):
+                        # 足りない分を空文字で埋める
+                        row += [""] * (len(expected_cols) - len(row))
+                    elif len(row) > len(expected_cols):
+                        # 多い分は切り捨てる
+                        row = row[:len(expected_cols)]
+                    cleaned_data.append(row)
+                
+                df = pd.DataFrame(cleaned_data, columns=expected_cols)
                 return df
             except Exception as e:
                 st.error(f"データ取得エラー: {e}")
-                return pd.DataFrame()
+                return pd.DataFrame(columns=["id", "user", "title", "category", "proposed_date", "status", "created_at", "scheduled_date"])
 
     def add_proposal(self, user, title, category, proposed_date=""):
         """新規提案の追加 (Status: pending)"""
@@ -122,8 +140,8 @@ class DataManager:
             "category": category,
             "proposed_date": str(proposed_date) if proposed_date else "",
             "status": "pending",
-            "scheduled_date": "",
-            "timestamp": datetime.datetime.now().isoformat()
+            "created_at": datetime.datetime.now().isoformat(),
+            "scheduled_date": ""
         }
 
         if self.use_mock:
@@ -135,7 +153,7 @@ class DataManager:
                 # ここでは辞書のキー順ではなく、明示的なリストを作成します
                 values = [
                     new_row["id"], new_row["user"], new_row["title"], new_row["category"], 
-                    new_row["proposed_date"], new_row["status"], new_row["scheduled_date"], new_row["timestamp"]
+                    new_row["proposed_date"], new_row["status"], new_row["created_at"], new_row["scheduled_date"]
                 ]
                 self.sheet.append_row(values)
                 return True
@@ -157,7 +175,7 @@ class DataManager:
                 cell = self.sheet.find(str(item_id))
                 if cell:
                     # statusカラムは6番目 (F列) と仮定
-                    # ヘッダー: id(1), user(2), title(3), category(4), proposed_date(5), status(6)
+                    # ヘッダー: id(1), user(2), title(3), category(4), proposed_date(5), status(6), created_at(7), scheduled_date(8)
                     self.sheet.update_cell(cell.row, 6, "approved")
                     return True
                 return False
@@ -179,9 +197,9 @@ class DataManager:
             try:
                 cell = self.sheet.find(str(item_id))
                 if cell:
-                    # status(6), scheduled_date(7)
+                    # status(6), scheduled_date(8)
                     self.sheet.update_cell(cell.row, 6, "scheduled")
-                    self.sheet.update_cell(cell.row, 7, str(scheduled_date))
+                    self.sheet.update_cell(cell.row, 8, str(scheduled_date))
                     return True
                 return False
             except Exception as e:
