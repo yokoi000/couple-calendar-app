@@ -183,7 +183,26 @@ with tab_list:
                                 rain(emoji="✨", font_size=54, falling_speed=5, animation_length=1)
                                 st.rerun()
                     with _2:
-                         with st.popover("🗑️", help="削除"):
+                         # 編集ポップオーバー
+                        with st.popover("✏️", help="編集"):
+                            st.write("内容はここで修正できます")
+                            with st.form(key=f"edit_form_{row['id']}"):
+                                e_title = st.text_input("タイトル", value=row['title'])
+                                e_cat = st.selectbox("カテゴリ", db.fetch_categories(), index=db.fetch_categories().index(row['category']) if row['category'] in db.fetch_categories() else 0)
+                                e_date = st.date_input("希望日", value=pd.to_datetime(row['proposed_date']).date() if row['proposed_date'] else None)
+                                
+                                if st.form_submit_button("更新する"):
+                                    updates = {
+                                        "title": e_title,
+                                        "category": e_cat,
+                                        "proposed_date": e_date
+                                    }
+                                    if db.update_proposal(row['id'], updates):
+                                        st.toast("更新しました！", icon="✅")
+                                        time.sleep(1)
+                                        st.rerun()
+
+                        with st.popover("🗑️", help="削除"):
                             st.warning("この操作は取り消せません。本当に削除しますか？")
                             if st.button("削除", key=f"del_pending_{row['id']}", type="primary"):
                                 if db.delete_proposal(row['id']):
@@ -242,6 +261,19 @@ with tab_list:
                                 st.rerun()
                         
                         st.write("")
+                        
+                        # 編集機能
+                        with st.popover("✏️", help="編集"):
+                            st.write("内容を修正")
+                            with st.form(key=f"edit_sched_{row['id']}"):
+                                e_sched_title = st.text_input("タイトル", value=row['title'])
+                                e_sched_cat = st.selectbox("カテゴリ", db.fetch_categories(), index=db.fetch_categories().index(row['category']) if row['category'] in db.fetch_categories() else 0)
+                                if st.form_submit_button("更新"):
+                                    if db.update_proposal(row['id'], {"title": e_sched_title, "category": e_sched_cat}):
+                                        st.toast("更新しました！", icon="✅")
+                                        time.sleep(1)
+                                        st.rerun()
+
                         with st.popover("🗑️", help="削除"):
                             st.warning("この操作は取り消せません。本当に削除しますか？")
                             if st.button("削除", key=f"del_sched_{row['id']}", type="primary"):
@@ -251,38 +283,68 @@ with tab_list:
                                     st.rerun()
 
 # タブ2: 新規提案
+# タブ2: 新規提案
 with tab_add:
     st.header("新しい提案")
-    with st.form("new_pitch"):
+    # clear_on_submit=Trueで投稿後に自動リセット
+    with st.form("new_pitch", clear_on_submit=True):
         f_title = st.text_input("やりたいこと / 行きたい場所")
         # カテゴリを動的に取得
         categories = db.fetch_categories()
         f_cat = st.radio("カテゴリ", categories, horizontal=True)
         
-
-            
         f_date = st.date_input("希望日 (あれば)", value=None)
         
         if st.form_submit_button("リストに追加する"):
             if f_title:
                 if db.add_proposal(st.session_state.current_user, f_title, f_cat, f_date):
-                    st.success("提案リストに追加しました！")
+                    st.toast("提案リストに追加しました！", icon="🎉")
+                    # 念のためステートもクリア（clear_on_submitがあるので基本不要だが）
+                    time.sleep(1)
                     st.rerun()
             else:
                 st.error("タイトルを入力してください")
 
     st.write("")
-    # カテゴリ追加UI (フォームの外に配置)
-    with st.expander("カテゴリを追加する"):
-        new_cat_name = st.text_input("新しいカテゴリ名", key="new_cat_input")
-        if st.button("カテゴリを追加", key="add_cat_btn"):
-            success, msg = db.add_category(new_cat_name)
-            if success:
-                st.success(msg)
-                time.sleep(1)
-                st.rerun()
-            else:
-                st.error(msg)
+    # カテゴリ追加・編集UI
+    col_add_cat, col_edit_cat = st.columns(2)
+    
+    with col_add_cat:
+        with st.expander("カテゴリを追加"):
+            new_cat_name = st.text_input("新しいカテゴリ名", key="new_cat_input")
+            if st.button("追加", key="add_cat_btn"):
+                success, msg = db.add_category(new_cat_name)
+                if success:
+                    st.success(msg)
+                    time.sleep(1)
+                    st.rerun()
+                else:
+                    st.error(msg)
+
+    with col_edit_cat:
+        with st.expander("カテゴリ名を変更"):
+            current_categories = db.fetch_categories()
+            if current_categories:
+                target_cat = st.selectbox("変更するカテゴリ", current_categories, key="edit_cat_target")
+                
+                # 影響範囲の計算
+                all_data = db.fetch_data()
+                impact_count = 0
+                if not all_data.empty:
+                    impact_count = all_data[all_data['category'] == target_cat].shape[0]
+                
+                st.caption(f"※ 既存のデータ **{impact_count}件** も同時に更新されます")
+                
+                rename_cat_name = st.text_input("新しい名前", key="rename_cat_input")
+                
+                if st.button("変更を保存", key="rename_cat_btn"):
+                    success, msg = db.update_category(target_cat, rename_cat_name)
+                    if success:
+                        st.success(msg)
+                        time.sleep(1)
+                        st.rerun()
+                    else:
+                        st.error(msg)
 
 # タブ3: カレンダー（確定リスト）
 with tab_calendar:

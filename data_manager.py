@@ -313,3 +313,101 @@ class DataManager:
             return True, "カテゴリを追加しました"
         except Exception as e:
             return False, f"追加エラー: {e}"
+
+    def update_category(self, old_name, new_name):
+        """カテゴリ名の変更（関連する提案データも一括更新）"""
+        new_name = new_name.strip()
+        if not new_name:
+            return False, "新しいカテゴリ名が空です"
+        
+        current_cats = self.fetch_categories()
+        if new_name in current_cats:
+            return False, "そのカテゴリ名は既に存在します"
+
+        if self.use_mock:
+            # カテゴリリストの更新
+            if "mock_categories" in st.session_state:
+                st.session_state.mock_categories = [new_name if c == old_name else c for c in st.session_state.mock_categories]
+            
+            # データの一括置換 (mock_db)
+            df = st.session_state.mock_db
+            count = df[df['category'] == old_name].shape[0]
+            df.loc[df['category'] == old_name, 'category'] = new_name
+            st.session_state.mock_db = df
+            
+            return True, f"カテゴリ名を変更しました（影響: {count}件）"
+        
+        try:
+            creds_dict = dict(st.secrets["gcp_service_account"])
+            env = st.secrets.get("env", {}).get("current", "dev")
+            url_key = f"spreadsheet_url_{env}"
+            url = st.secrets["google_sheets"][url_key]
+            
+            gc = get_gspread_client(creds_dict)
+            wb = gc.open_by_url(url)
+            
+            # 1. Categoriesシートの更新
+            ws_cat = wb.worksheet("categories")
+            cell = ws_cat.find(old_name)
+            if not cell:
+                return False, "変更対象のカテゴリが見つかりません"
+            
+            ws_cat.update_cell(cell.row, cell.col, new_name)
+            
+            # 2. 提案データの更新 (Sheet1)
+            # categoryは4列目と仮定
+            cells = self.sheet.findall(old_name)
+            # 4列目(D列)のものだけをフィルタリング
+            target_cells = [c for c in cells if c.col == 4]
+            count = len(target_cells)
+            
+            if count > 0:
+                for c in target_cells:
+                    c.value = new_name
+                self.sheet.update_cells(target_cells)
+            
+            # キャッシュクリア
+            _get_categories_from_sheet.clear()
+            
+            return True, f"カテゴリ名を変更しました（関連データ {count}件も同時に更新）"
+        except Exception as e:
+            return False, f"更新エラー: {e}"
+
+    def update_proposal(self, item_id, updates):
+        """提案内容の更新"""
+        # updates = {"title": "...", "category": "...", "proposed_date": "...", "scheduled_date": "..."}
+        if self.use_mock:
+            df = st.session_state.mock_db
+            idx = df[df['id'] == item_id].index
+            if not idx.empty:
+                for col, val in updates.items():
+                    if col in df.columns:
+                        st.session_state.mock_db.at[idx[0], col] = val
+                return True
+            return False
+        
+        try:
+            cell = self.sheet.find(str(item_id))
+            if not cell:
+                return False
+            
+            # カラム名と列番号のマッピング
+            # id(1), user(2), title(3), category(4), proposed_date(5), status(6), created_at(7), scheduled_date(8)
+            col_map = {
+                "title": 3,
+                "category": 4,
+                "proposed_date": 5,
+                "status": 6,
+                "scheduled_date": 8
+            }
+            
+            # バッチ更新用にセルオブジェクトを作成したいが、個別にupdate_cellの方が安全確実か
+            # gspreadのupdate_cellは(row, col, value)
+            for col_name, val in updates.items():
+                if col_name in col_map:
+                    self.sheet.update_cell(cell.row, col_map[col_name], str(val))
+            
+            return True
+        except Exception as e:
+            st.error(f"更新エラー: {e}")
+            return False
