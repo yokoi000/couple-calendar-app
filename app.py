@@ -259,17 +259,7 @@ with tab_add:
         categories = db.fetch_categories()
         f_cat = st.radio("カテゴリ", categories, horizontal=True)
         
-        # カテゴリ追加UI
-        with st.expander("カテゴリを追加する"):
-            new_cat_name = st.text_input("新しいカテゴリ名", key="new_cat_input")
-            if st.button("カテゴリを追加", key="add_cat_btn"):
-                success, msg = db.add_category(new_cat_name)
-                if success:
-                    st.success(msg)
-                    time.sleep(1)
-                    st.rerun()
-                else:
-                    st.error(msg)
+
             
         f_date = st.date_input("希望日 (あれば)", value=None)
         
@@ -280,6 +270,19 @@ with tab_add:
                     st.rerun()
             else:
                 st.error("タイトルを入力してください")
+
+    st.write("")
+    # カテゴリ追加UI (フォームの外に配置)
+    with st.expander("カテゴリを追加する"):
+        new_cat_name = st.text_input("新しいカテゴリ名", key="new_cat_input")
+        if st.button("カテゴリを追加", key="add_cat_btn"):
+            success, msg = db.add_category(new_cat_name)
+            if success:
+                st.success(msg)
+                time.sleep(1)
+                st.rerun()
+            else:
+                st.error(msg)
 
 # タブ3: カレンダー（確定リスト）
 with tab_calendar:
