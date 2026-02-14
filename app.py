@@ -15,110 +15,115 @@ st.set_page_config(
 # 北欧モダン風のカスタムCSS（パステルカラーと清潔感）
 st.markdown("""
 <style>
-    /* 全体のフォントと背景 */
-    @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@300;400;700&display=swap');
+    /* 1. フォント: Murecho & Quicksand */
+    @import url('https://fonts.googleapis.com/css2?family=Murecho:wght@300;400;700&family=Quicksand:wght@300;400;700&display=swap');
     
     html, body, [class*="css"]  {
-        font-family: 'M PLUS Rounded 1c', sans-serif;
+        font-family: 'Quicksand', 'Murecho', sans-serif;
     }
     
-    /* ライトモード（デフォルト） */
+    /* 2. 背景設定: Mesh Gradient (Light Mode) */
     .stApp {
-        background-color: #FDFBF7; /* クリーム系の優しい白 */
+        background-color: #FDFBF7;
+        background-image: 
+            radial-gradient(at 10% 10%, rgba(253, 235, 208, 0.4) 0px, transparent 50%),
+            radial-gradient(at 90% 10%, rgba(213, 245, 227, 0.4) 0px, transparent 50%),
+            radial-gradient(at 90% 90%, rgba(214, 234, 248, 0.4) 0px, transparent 50%),
+            radial-gradient(at 10% 90%, rgba(245, 183, 177, 0.2) 0px, transparent 50%);
+        background-attachment: fixed;
     }
     
-    h1, h2, h3, p, span, .stMarkdown, div, label {
-        color: #5D6D7E; /* 落ち着いたグレー */
+    /* 基本文字色 */
+    h1, h2, h3, p, span, div, label {
+        color: #333333; /* 視認性重視の濃いグレー */
     }
-
-    /* 提案カードのデザイン（共通） */
-    .proposal-card {
-        padding: 20px;
-        border-radius: 15px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-        margin-bottom: 20px;
-        border-left: 6px solid #ccc;
-        transition: all 0.3s ease;
-    }
-    
-    /* カードの色（ライトモード） */
-    .proposal-card {
-        background-color: white;
-        color: #5D6D7E;
-    }
-
-    /* ダークモード対応 */
-    @media (prefers-color-scheme: dark) {
-        .stApp {
-            background-color: #1E1E1E !important; /* 目に優しいダークグレー */
-        }
-        
-        h1, h2, h3, p, span, .stMarkdown, div, label, .stTextInput > label, .stSelectbox > label, .stDateInput > label {
-            color: #FDFBF7 !important; /* クリーム系の白 */
-        }
-        
-        /* 提案カード（ダークモード） */
-        .proposal-card {
-            background-color: #2D2D2D !important;
-            color: #FDFBF7 !important;
-            box-shadow: 0 4px 6px rgba(255,255,255,0.05);
-        }
-        
-        /* 入力フィールドの調整 */
-        .stTextInput > div > div > input, .stSelectbox > div > div > div {
-            background-color: #333 !important;
-            color: #FDFBF7 !important;
-            border: 1px solid #555 !important;
-        }
-        
-        /* サイドバーも暗くする */
-         section[data-testid="stSidebar"] {
-            background-color: #252525 !important;
-        }
-    }
-
-    /* 見出し（共通で太字） */
     h1, h2, h3 {
         font-weight: 700;
+        letter-spacing: 0.05em;
     }
 
-    /* ボタン（共通） */
-    div.stButton > button:first-child {
-        background-color: #A9CCE3; /* パステルブルー */
-        color: white !important;
+    /* 3. ガラスモーフィズム・カード (共通) */
+    .proposal-card, section[data-testid="stSidebar"], div[data-testid="stForm"] {
+        background: rgba(255, 255, 255, 0.4);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.6);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
         border-radius: 20px;
-        border: none;
-        padding: 10px 24px;
-        font-weight: bold;
-        transition: all 0.3s ease;
-    }
-    div.stButton > button:first-child:hover {
-        background-color: #7FB3D5;
-        transform: scale(1.05); /* ホバー時に少し拡大 */
+        padding: 20px;
+        margin-bottom: 20px;
     }
     
-    /* 入力フィールド（ライトモード用デフォルト） */
-    .stTextInput > div > div > input {
-        border-radius: 10px;
-        border: 1px solid #E5E7E9;
+    /* サイドバーの背景を透過させてガラス感を出す */
+    section[data-testid="stSidebar"] {
+        background: rgba(255, 255, 255, 0.3);
+        border-right: 1px solid rgba(255, 255, 255, 0.5);
     }
-
-    .card-you { border-left-color: #AED6F1; } /* あなた（青） */
-    .card-partner { border-left-color: #F5B7B1; } /* 彼女（ピンク） */
 
     /* バッジ */
     .badge {
         display: inline-block;
         padding: 4px 12px;
-        border-radius: 15px;
+        border-radius: 12px;
         color: white !important;
         font-size: 0.8rem;
-        margin-right: 10px;
+        font-weight: bold;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        backdrop-filter: blur(4px);
     }
-    .bg-blue { background-color: #AED6F1; }
-    .bg-pink { background-color: #F5B7B1; }
-    .bg-cat { background-color: #D7BDE2; color: white !important; }
+    .bg-blue { background-color: rgba(174, 214, 241, 0.9); }
+    .bg-pink { background-color: rgba(245, 183, 177, 0.9); }
+    .bg-cat { background-color: rgba(215, 189, 226, 0.9); }
 
+    /* 入力フォーム & ボタン (フラット & 透過) */
+    .stTextInput > div > div > input, .stDateInput > div > div > input, .stSelectbox > div > div > div {
+        background-color: rgba(255, 255, 255, 0.5) !important;
+        border: 1px solid rgba(255, 255, 255, 0.8) !important;
+        border-radius: 12px !important;
+        color: #333 !important;
+        backdrop-filter: blur(5px);
+    }
+    
+    div.stButton > button:first-child {
+        background: linear-gradient(135deg, #A9CCE3 0%, #7FB3D5 100%);
+        color: white !important;
+        border-radius: 20px;
+        border: none;
+        box-shadow: 0 4px 10px rgba(169, 204, 227, 0.4);
+        font-weight: bold;
+        backdrop-filter: blur(4px);
+    }
+    div.stButton > button:first-child:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 15px rgba(169, 204, 227, 0.6);
+    }
+
+    /* 4. ダークモード対応 */
+    @media (prefers-color-scheme: dark) {
+        .stApp {
+            background-color: #121212;
+            background-image: 
+                radial-gradient(at 20% 20%, rgba(50, 50, 50, 0.5) 0px, transparent 50%),
+                radial-gradient(at 80% 80%, rgba(40, 60, 80, 0.5) 0px, transparent 50%);
+        }
+        
+        h1, h2, h3, p, span, div, label, .stMarkdown {
+            color: #FDFBF7 !important;
+        }
+
+        .proposal-card, section[data-testid="stSidebar"], div[data-testid="stForm"] {
+            background: rgba(0, 0, 0, 0.3) !important;
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3) !important;
+            color: #FDFBF7 !important;
+        }
+        
+        .stTextInput > div > div > input, .stDateInput > div > div > input, .stSelectbox > div > div > div {
+            background-color: rgba(255, 255, 255, 0.1) !important;
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+            color: #FDFBF7 !important;
+        }
+    }
 </style>
 """, unsafe_allow_html=True)
 
