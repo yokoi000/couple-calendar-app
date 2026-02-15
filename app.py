@@ -14,15 +14,67 @@ st.set_page_config(
 
 # 北欧モダン風のカスタムCSS（パステルカラーと清潔感）
 st.markdown("""
+
 <style>
     /* 1. フォント: Murecho & Quicksand */
     @import url('https://fonts.googleapis.com/css2?family=Murecho:wght@300;400;700&family=Quicksand:wght@300;400;700&display=swap');
     
-    html, body, [class*="css"]  {
-        font-family: 'Quicksand', 'Murecho', sans-serif;
+    :root {
+        /* Nordic Modern Palette (Light Mode) */
+        --color-sage-deep: #4A6C6F;       /* ディープ・セージグリーン */
+        --color-terracotta: #CD5C5C;      /* テラコッタ・オレンジ */
+        --color-dusty-pink: #D98880;      /* ダスティ・ピンク */
+        --color-midnight: #2C3E50;        /* ミッドナイト・ブルー */
+        --color-text-main: #2C3E50;       /* 基本テキスト色 */
+        --color-text-light: #FDFBF7;      /* 白文字 */
+        
+        /* Backgrounds for Glassmorphism */
+        --bg-glass: rgba(255, 255, 255, 0.4);
+        --border-glass: rgba(255, 255, 255, 0.6);
+        --shadow-glass: 0 4px 15px rgba(0, 0, 0, 0.05);
+        --text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
+        
+        /* Category/User Colors (Pastel Backgrounds) */
+        --bg-blue-pastel: #D6EAF8;
+        --text-blue-dark: #2874A6;
+        --bg-pink-pastel: #FADBD8;
+        --text-pink-dark: #CB4335;
+        --bg-cat-pastel: #EBDEF0;
+        --text-cat-dark: #884EA0;
+    }
+
+    /* Dark Mode Palette (Neon Pastels) */
+    @media (prefers-color-scheme: dark) {
+        :root {
+            --color-sage-deep: #A3E4D7;       /* ネオンミント */
+            --color-terracotta: #F5B7B1;      /* ネオンピーチ */
+            --color-dusty-pink: #F1948A;      /* ネオンピンク */
+            --color-midnight: #D6EAF8;        /* アイスブルー */
+            --color-text-main: #FDFBF7;       /* 基本テキスト色 */
+            
+            --bg-glass: rgba(30, 30, 30, 0.6);
+            --border-glass: rgba(255, 255, 255, 0.1);
+            --shadow-glass: 0 4px 15px rgba(0, 0, 0, 0.5);
+            --text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+            
+             /* Dark Mode Tags (Darker Backgrounds for contrast or brighter text? 
+                Rule: "Neon Pastel" text on dark background usually looks best, 
+                but for badges we might want semi-transparent dark bg with neon text) */
+            --bg-blue-pastel: rgba(40, 116, 166, 0.4);
+            --text-blue-dark: #85C1E9;
+            --bg-pink-pastel: rgba(203, 67, 53, 0.4);
+            --text-pink-dark: #F1948A;
+            --bg-cat-pastel: rgba(136, 78, 160, 0.4);
+            --text-cat-dark: #D7BDE2;
+        }
     }
     
-    /* 2. 背景設定: Mesh Gradient (Light Mode) */
+    html, body, [class*="css"]  {
+        font-family: 'Quicksand', 'Murecho', sans-serif;
+        color: var(--color-text-main);
+    }
+    
+    /* 2. 背景設定: Mesh Gradient */
     .stApp {
         background-color: #FDFBF7;
         background-image: 
@@ -32,73 +84,6 @@ st.markdown("""
             radial-gradient(at 10% 90%, rgba(245, 183, 177, 0.2) 0px, transparent 50%);
         background-attachment: fixed;
     }
-    
-    /* 基本文字色 */
-    h1, h2, h3, p, span, div, label {
-        color: #333333; /* 視認性重視の濃いグレー */
-    }
-    h1, h2, h3 {
-        font-weight: 700;
-        letter-spacing: 0.05em;
-    }
-
-    /* 3. ガラスモーフィズム・カード (共通) */
-    .proposal-card, section[data-testid="stSidebar"], div[data-testid="stForm"] {
-        background: rgba(255, 255, 255, 0.4);
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 255, 255, 0.6);
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
-        border-radius: 20px;
-        padding: 20px;
-        margin-bottom: 20px;
-    }
-    
-    /* サイドバーの背景を透過させてガラス感を出す */
-    section[data-testid="stSidebar"] {
-        background: rgba(255, 255, 255, 0.3);
-        border-right: 1px solid rgba(255, 255, 255, 0.5);
-    }
-
-    /* バッジ */
-    .badge {
-        display: inline-block;
-        padding: 4px 12px;
-        border-radius: 12px;
-        color: white !important;
-        font-size: 0.8rem;
-        font-weight: bold;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        backdrop-filter: blur(4px);
-    }
-    .bg-blue { background-color: rgba(174, 214, 241, 0.9); }
-    .bg-pink { background-color: rgba(245, 183, 177, 0.9); }
-    .bg-cat { background-color: rgba(215, 189, 226, 0.9); }
-
-    /* 入力フォーム & ボタン (フラット & 透過) */
-    .stTextInput > div > div > input, .stDateInput > div > div > input, .stSelectbox > div > div > div {
-        background-color: rgba(255, 255, 255, 0.5) !important;
-        border: 1px solid rgba(255, 255, 255, 0.8) !important;
-        border-radius: 12px !important;
-        color: #333 !important;
-        backdrop-filter: blur(5px);
-    }
-    
-    div.stButton > button:first-child {
-        background: linear-gradient(135deg, #A9CCE3 0%, #7FB3D5 100%);
-        color: white !important;
-        border-radius: 20px;
-        border: none;
-        box-shadow: 0 4px 10px rgba(169, 204, 227, 0.4);
-        font-weight: bold;
-        backdrop-filter: blur(4px);
-    }
-    div.stButton > button:first-child:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 15px rgba(169, 204, 227, 0.6);
-    }
-
-    /* 4. ダークモード対応 */
     @media (prefers-color-scheme: dark) {
         .stApp {
             background-color: #121212;
@@ -106,22 +91,123 @@ st.markdown("""
                 radial-gradient(at 20% 20%, rgba(50, 50, 50, 0.5) 0px, transparent 50%),
                 radial-gradient(at 80% 80%, rgba(40, 60, 80, 0.5) 0px, transparent 50%);
         }
-        
-        h1, h2, h3, p, span, div, label, .stMarkdown {
-            color: #FDFBF7 !important;
-        }
+    }
+    
+    /* Typography & Semantics */
+    h1 {
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        background: linear-gradient(90deg, var(--color-sage-deep), var(--color-terracotta));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        filter: drop-shadow(0px 1px 2px rgba(0,0,0,0.1));
+    }
 
-        .proposal-card, section[data-testid="stSidebar"], div[data-testid="stForm"] {
-            background: rgba(0, 0, 0, 0.3) !important;
-            border: 1px solid rgba(255, 255, 255, 0.1) !important;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3) !important;
-            color: #FDFBF7 !important;
-        }
-        
+    h2, h3 {
+        color: var(--color-sage-deep); /* Section Titles: Deep Sage */
+        font-weight: 700;
+        text-shadow: var(--text-shadow);
+    }
+    
+    p, span, div, label {
+        color: var(--color-text-main);
+    }
+
+    /* 3. ガラスモーフィズム・カード */
+    .proposal-card, section[data-testid="stSidebar"], div[data-testid="stForm"] {
+        background: var(--bg-glass) !important;
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid var(--border-glass) !important;
+        box-shadow: var(--shadow-glass) !important;
+        border-radius: 20px;
+        padding: 24px;
+        margin-bottom: 24px;
+    }
+    
+    /* カード内のタイポグラフィ詳細設定 */
+    .proposal-card h3 {
+        color: var(--color-terracotta) !important; /* Card Headings: Terracotta */
+        font-size: 1.4rem;
+        margin-bottom: 0.5rem;
+        text-shadow: var(--text-shadow);
+    }
+    .proposal-card h4 {
+        color: var(--color-terracotta) !important;
+        text-shadow: var(--text-shadow);
+    }
+    
+    /* 日付・時間 */
+    .proposal-card p {
+        color: var(--color-midnight) !important;
+        font-family: 'Quicksand', sans-serif;
+        font-weight: 500;
+        opacity: 0.9;
+    }
+
+    /* バッジ: パステル背景 + 濃い文字 */
+    .badge {
+        display: inline-block;
+        padding: 6px 14px;
+        border-radius: 16px;
+        font-size: 0.85rem;
+        font-weight: 700;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        backdrop-filter: blur(4px);
+        margin-right: 6px;
+    }
+    .bg-blue { 
+        background-color: var(--bg-blue-pastel); 
+        color: var(--text-blue-dark) !important;
+        border: 1px solid var(--text-blue-dark); /* アクセント */
+    }
+    .bg-pink { 
+        background-color: var(--bg-pink-pastel); 
+        color: var(--text-pink-dark) !important;
+        border: 1px solid var(--text-pink-dark);
+    }
+    .bg-cat { 
+        background-color: var(--bg-cat-pastel); 
+        color: var(--text-cat-dark) !important;
+        border: 1px solid transparent; 
+    }
+
+    /* 入力フォーム & ボタン */
+    .stTextInput > div > div > input, .stDateInput > div > div > input, .stSelectbox > div > div > div {
+        background-color: rgba(255, 255, 255, 0.6) !important;
+        border: 1px solid rgba(255, 255, 255, 0.4) !important;
+        border-radius: 12px !important;
+        color: var(--color-text-main) !important;
+    }
+    
+    div.stButton > button:first-child {
+        background: linear-gradient(135deg, var(--color-sage-deep) 0%, var(--color-midnight) 100%);
+        color: white !important;
+        border-radius: 20px;
+        border: none;
+        box-shadow: 0 4px 12px rgba(44, 62, 80, 0.3);
+        font-weight: bold;
+        transition: all 0.3s ease;
+    }
+    div.stButton > button:first-child:hover {
+        transform: translateY(-2px) scale(1.02);
+        box-shadow: 0 6px 18px rgba(44, 62, 80, 0.4);
+    }
+
+    /* Sidebar adjustments */
+    section[data-testid="stSidebar"] {
+        border-right: 1px solid var(--border-glass);
+    }
+    section[data-testid="stSidebar"] * {
+        color: var(--color-text-main) !important;
+        text-shadow: var(--text-shadow);
+    }
+    
+    /* Dark mode specific tweaks for inputs */
+    @media (prefers-color-scheme: dark) {
         .stTextInput > div > div > input, .stDateInput > div > div > input, .stSelectbox > div > div > div {
             background-color: rgba(255, 255, 255, 0.1) !important;
-            border: 1px solid rgba(255, 255, 255, 0.1) !important;
-            color: #FDFBF7 !important;
+            color: var(--color-text-main) !important;
         }
     }
 </style>
@@ -216,7 +302,7 @@ with tab_list:
                             <span class="badge {badge_class}">{row['user']}</span>
                             <span class="badge bg-cat">{row['category']}</span>
                         </div>
-                        <p style="color: #666;">希望日: {row['proposed_date'] if row['proposed_date'] else '未定'}</p>
+                        <p>希望日: {row['proposed_date'] if row['proposed_date'] else '未定'}</p>
                     </div>
                     """, unsafe_allow_html=True)
                     
